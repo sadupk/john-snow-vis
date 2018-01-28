@@ -41,29 +41,32 @@ cholera_age_sex$female = as.numeric(cholera_age_sex$female)
 cholera_deaths$Total = cholera_deaths$Attack + cholera_deaths$Death
 cholera_deaths$Cummulative_Total = cumsum(cholera_deaths$Total)
 
-ui <- fluidPage("Hello World")
-
-server <- function(input, output) {}
-
-shinyApp(ui <- ui, server = server)
-
 #Line plot
 cholera_deaths_long = melt(cholera_deaths, id="Date")
 ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 2) + 
   scale_color_manual(values=wes_palette(n=4, name="GrandBudapest2"))
 
+#Bar plot of deaths by sex/age
+cholera_age_sex_long = melt(cholera_age_sex, id.vars = "age")
+ggplot(cholera_age_sex_long, aes(x=age, y=value,fill=factor(variable))) + geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = wes_palette(n=2, name="GrandBudapest"))
+
 ui = dashboardPage(
   dashboardHeader(title = "John Snow's Dashboard"),
-  dashboardSidebar(disable = TRUE),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
+      menuItem("Widgets", tabName = "widgets", icon = icon("th"))
+    )
+  ),
   dashboardBody(
-    fluidRow(
-      box(title = "Noon Data as Table", solidHeader = TRUE, status = "primary", width = 4,
-          dataTableOutput("tab1")
-      )
-    ),
-    fluidRow(
-      box( title = "Cholera Deaths and Attacks", solidHeader = TRUE, status = "primary", width = 12,
-           plotOutput("plot0")
+    tabItems(
+      tabItem(tabName = "dashboard",
+        fluidRow(
+          box(
+            title = "Cholera Deaths and Attacks", plotOutput("plot0")
+          )
+        )
       )
     )
 ))
