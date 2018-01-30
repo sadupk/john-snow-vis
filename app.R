@@ -66,6 +66,11 @@ ui = dashboardPage(
           box(
             title = "Cholera Deaths and Attacks", plotOutput("plot0")
           )
+        ),
+        fluidRow(
+          box(
+            title = "Men and Woman Attacked", plotOutput("plot2")
+          )
         )
       )
     )
@@ -77,6 +82,13 @@ server = function(input, output) {
       scale_color_manual(values=wes_palette(n=4, name="GrandBudapest2"), 
                          labels=c("Attacks", "Deaths", "Total Attacks + Deaths", "Cummulative Total")) +
       theme_dark(20)
+  })
+  output$plot1 = renderPlot({
+    ggplot(cholera_age_sex_long, aes(x=age, y=value,fill=factor(variable))) + geom_bar(stat = "identity", position = "dodge") +
+      scale_fill_manual(values = wes_palette(n=2, name="GrandBudapest"))
+  })
+  output$plot2 = renderPlot({
+    ggplot(cholera_age_sex, aes(x=age, y=female)) + geom_bar(stat = "identity")
   })
 }
 
