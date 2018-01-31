@@ -15,8 +15,8 @@ library(wesanderson)
 cholera_deaths = read.delim("18p1data/choleraDeaths.tsv", skip = 1, col.names = c("Date", "Attack", "Death"), header = FALSE)
 cholera_age_sex = read.delim("18p1data/naplesCholeraAgeSexData.tsv", skip = 5, col.names = c("age", "male", "female"), header = FALSE)
 UK_census = read.delim("18p1data/UKcensus1851.csv", skip = 2, sep = ",")
-cholera_death_locations = read.delim("18p1data/choleraDeathLocations.csv", sep = ",", col.names = c("deaths", "lat", "long"), header = FALSE)
-pump_locations = read.delim("18p1data/choleraPumpLocations.csv", sep = ",", col.names = c("lat", "long"), header = FALSE)
+cholera_death_locations = read.delim("18p1data/choleraDeathLocations.csv", sep = ",", col.names = c("deaths", "long", "lat"), header = FALSE)
+pump_locations = read.delim("18p1data/choleraPumpLocations.csv", sep = ",", col.names = c("long", "lat"), header = FALSE)
 
 #Fix cholera_deaths
 cholera_deaths$Date = as.character(cholera_deaths$Date)
@@ -59,6 +59,27 @@ UK_census_sum = data.frame(
   group = c("male", "female"),
   total = c(sum(UK_census$male), sum(UK_census$female))
 )
+
+#Custom leaflet pump marker
+pump_icon <- makeIcon(
+  iconUrl = "18p1data/drop-icon.png",
+  iconWidth = 20, iconHeight = 20,
+  iconAnchorX = 22, iconAnchorY = 94,
+  shadowUrl = "18p1data/drop-icon.png",
+  shadowWidth = 20, shadowHeight = 20,
+  shadowAnchorX = 4, shadowAnchorY = 62
+)
+
+leaflet(data = cholera_death_locations) %>% addTiles(group = "Deaths") %>% 
+  addProviderTiles(providers$CartoDB.Positron, group = "Basemap") %>%
+  addMarkers(clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE, animationOptions())) %>% 
+  addMarkers(data = pump_locations, group = "Pumps", icon = pump_icon) %>%
+  addLayersControl(
+    baseGroups = c("Basemap", "Deaths"),
+    overlayGroups = c("Pumps"),
+    options = layersControlOptions(collapsed = TRUE)
+  )
+
 
 ui = dashboardPage(
   dashboardHeader(title = "John Snow's Dashboard"),
@@ -171,6 +192,7 @@ server = function(input, output) {
   output$table2 = renderDataTable({
     UK_census
   })
+ # leaflet(data = pump_locations) %>% addTiles() %>% +addMarkers(~long, ~lat)
 }
 
 shinyApp(ui <- ui, server = server)
