@@ -14,6 +14,10 @@ library(wesanderson)
 # Read the data in tsv format and format bad row
 cholera_deaths = read.delim("18p1data/choleraDeaths.tsv", skip = 1, col.names = c("Date", "Attack", "Death"), header = FALSE)
 cholera_age_sex = read.delim("18p1data/naplesCholeraAgeSexData.tsv", skip = 5, col.names = c("age", "male", "female"), header = FALSE)
+UK_census = read.delim("18p1data/UKcensus1851.csv", skip = 2, sep = ",")
+cholera_death_locations = read.delim("18p1data/choleraDeathLocations.csv", sep = ",", col.names = c("deaths", "lat", "long"), header = FALSE)
+pump_locations = read.delim("18p1data/choleraPumpLocations.csv", sep = ",", col.names = c("lat", "long"), header = FALSE)
+
 #Fix cholera_deaths
 cholera_deaths$Date = as.character(cholera_deaths$Date)
 bad_row = strsplit(cholera_deaths$Date[1], " ")
@@ -37,19 +41,24 @@ cholera_deaths$Death = as.integer(cholera_deaths$Death)
 cholera_age_sex$male = as.numeric(cholera_age_sex$male)
 cholera_age_sex$female = as.numeric(cholera_age_sex$female)
 
-#New column Attack+Death Total
-cholera_deaths$Total = cholera_deaths$Attack + cholera_deaths$Death
-cholera_deaths$Cummulative_Total = cumsum(cholera_deaths$Total)
+#New columns cumsum for cholera_deaths
+cholera_deaths$Attack_cum = cumsum(cholera_deaths$Attack)
+cholera_deaths$Death_cum = cumsum(cholera_deaths$Death)
 
-#Line plot
+#New column for UK census
+UK_census$total = UK_census$male + UK_census$female
+
+#Line plot melted data for cholera_deaths
 cholera_deaths_long = melt(cholera_deaths, id="Date")
-ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 2) + 
-  scale_color_manual(values=wes_palette(n=4, name="GrandBudapest2"))
 
-#Bar plot of deaths by sex/age
+#Bar plot of deaths by sex/age melted data for cholera_age_sex
 cholera_age_sex_long = melt(cholera_age_sex, id.vars = "age")
-ggplot(cholera_age_sex_long, aes(x=age, y=value,fill=factor(variable))) + geom_bar(stat = "identity", position = "dodge") +
-  scale_fill_manual(values = wes_palette(n=2, name="GrandBudapest"))
+
+#Pie chart of UK_census sum
+UK_census_sum = data.frame(
+  group = c("male", "female"),
+  total = c(sum(UK_census$male), sum(UK_census$female))
+)
 
 ui = dashboardPage(
   dashboardHeader(title = "John Snow's Dashboard"),
@@ -68,8 +77,53 @@ ui = dashboardPage(
           )
         ),
         fluidRow(
+          dataTableOutput(
+            "table0"
+          )
+        ),
+        fluidRow(
+          dataTableOutput(
+            "table1"
+          )
+        ),
+        fluidRow(
           box(
-            title = "Men and Woman Attacked", plotOutput("plot2")
+            title = "Woman Attacked", plotOutput("plot2")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "Men Attacked", plotOutput("plot3")
+          )
+        ),
+        fluidRow(
+          dataTableOutput(
+            "table2"
+          )
+        ),
+        fluidRow(
+          box(
+            title = "UK Census - Males", plotOutput("plot4")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "UK Census - females", plotOutput("plot5")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "UK Census - males", plotOutput("plot6")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "UK Census - females", plotOutput("plot7")
+          )
+        ),
+        fluidRow(
+          box(
+            title = "UK Census - total by sex", plotOutput("plot8")
           )
         )
       )
@@ -80,7 +134,7 @@ server = function(input, output) {
     ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 2) + 
       theme(legend.title=element_blank()) +
       scale_color_manual(values=wes_palette(n=4, name="GrandBudapest2"), 
-                         labels=c("Attacks", "Deaths", "Total Attacks + Deaths", "Cummulative Total")) +
+                         labels=c("Attacks", "Deaths", "Cummulatice Attacks", "Cummulative Deaths")) +
       theme_dark(20)
   })
   output$plot1 = renderPlot({
@@ -89,6 +143,33 @@ server = function(input, output) {
   })
   output$plot2 = renderPlot({
     ggplot(cholera_age_sex, aes(x=age, y=female)) + geom_bar(stat = "identity")
+  })
+  output$plot3 = renderPlot({
+    ggplot(cholera_age_sex, aes(x=age, y=male)) + geom_bar(stat = "identity")
+  })
+  output$plot4 = renderPlot({
+    ggplot(UK_census, aes(x="", y=male, fill=age)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
+  })
+  output$plot5 = renderPlot({
+    ggplot(UK_census, aes(x="", y=female, fill=age)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
+  })
+  output$plot6 = renderPlot({
+    ggplot(UK_census, aes(x=age, y=male)) + geom_bar(stat = "identity")
+  })
+  output$plot7 = renderPlot({
+    ggplot(UK_census, aes(x=age, y=female)) + geom_bar(stat = "identity")
+  })
+  output$plot8 = renderPlot({
+    ggplot(UK_census_sum, aes(x="", y=total, fill=group)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
+  })
+  output$table0 = renderDataTable({
+    cholera_deaths
+  })
+  output$table1 = renderDataTable({
+    cholera_age_sex
+  })
+  output$table2 = renderDataTable({
+    UK_census
   })
 }
 
