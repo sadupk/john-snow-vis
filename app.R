@@ -7,6 +7,7 @@ library(jpeg)
 library(grid)
 library(leaflet)
 library(reshape)
+library(rgdal)
 library(wesanderson)
 
 #Lots of code snippets here are inspired by Andy Johnson's demos in CS424
@@ -70,16 +71,28 @@ pump_icon <- makeIcon(
   shadowAnchorX = 4, shadowAnchorY = 62
 )
 
-leaflet(data = cholera_death_locations) %>% addTiles(group = "Deaths") %>% 
-  addProviderTiles(providers$CartoDB.Positron, group = "Basemap") %>%
-  addMarkers(clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE, animationOptions())) %>% 
-  addMarkers(data = pump_locations, group = "Pumps", icon = pump_icon) %>%
-  addLayersControl(
-    baseGroups = c("Basemap", "Deaths"),
-    overlayGroups = c("Pumps"),
-    options = layersControlOptions(collapsed = TRUE)
-  )
+#Plot JPEG and hover variables
+df = data.frame(x = 1:100, y = 1:100)
+x = c(25:35)
+y = c(25:35)
+a = data.frame(x,y)
+map = jpeg::readJPEG("~/Documents/CS424-Visualization/john-snow-vis/18p1data/snowMapRobinWilson.jpg")
 
+#Coordinates for JPEG projection plot
+bottom_left = c(0 ,-0.143556, 51.509472)
+#top_right = c(0, -0.131235, 51.516648)
+top_right = c(0, -0.131438, 51.516533)
+
+cord = rbind(bottom_left, top_right, cholera_death_locations)
+
+cord.dec = SpatialPoints(cbind(cord$long, cord$lat), proj4string=CRS("+proj=longlat"))
+cord.UTM = spTransform(cord.dec, CRS("+init=epsg:27700"))
+cord =cbind(cord$deaths,as.data.frame(cord.UTM))
+
+#Scale projection to JPEG coordinates
+cord$coords.x1 = (cord$coords.x1 - min(cord$coords.x1)) / (max(cord$coords.x1) - min(cord$coords.x1)) * nrow(df)
+cord$coords.x2 = (cord$coords.x2 - min(cord$coords.x2)) / (max(cord$coords.x2) - min(cord$coords.x2)) * nrow(df)
+cholera_death_locations_xy = cord[-c(1:2),]
 
 ui = dashboardPage(
   dashboardHeader(title = "John Snow's Dashboard"),
@@ -146,10 +159,27 @@ ui = dashboardPage(
           box(
             title = "UK Census - total by sex", plotOutput("plot8")
           )
+        ),
+        fluidRow(
+          box(
+            title = "Leaflet Map", leafletOutput("leaf")
+          )
+        ),
+        fluidRow(
+          column(width = 5,
+                 verbatimTextOutput("hover_info")
+          )
+        ),
+        fluidRow(
+          column(width = 12,
+                 plotOutput("jpeg", height = 1600,hover = hoverOpts(id ="plot_hover"))
+          )
         )
       )
     )
 ))
+
+
 server = function(input, output) {
   output$plot0 = renderPlot({
     ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 2) + 
@@ -192,7 +222,33 @@ server = function(input, output) {
   output$table2 = renderDataTable({
     UK_census
   })
- # leaflet(data = pump_locations) %>% addTiles() %>% +addMarkers(~long, ~lat)
+  output$leaf <- renderLeaflet({
+    map =leaflet(data = cholera_death_locations) %>% addTiles(group = "Deaths") %>% 
+      addProviderTiles(providers$CartoDB.Positron, group = "Basemap") %>%
+      addMarkers(clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE, animationOptions())) %>% 
+      addMarkers(data = pump_locations, group = "Pumps", icon = pump_icon) %>%
+      addLayersControl(
+        baseGroups = c("Basemap", "Deaths"),
+        overlayGroups = c("Pumps"),
+        options = layersControlOptions(collapsed = TRUE)
+      )
+  })
+  output$jpeg <- renderPlot({
+    ggplot(df, aes(x,y)) + geom_blank() + labs(x="", y = "") + 
+      annotation_custom(rasterGrob(map, width=unit(1,"npc"), height=unit(1,"npc")), -Inf, Inf, -Inf, Inf) +
+      geom_point(data = cholera_death_locations_xy, aes(x = coords.x1, y = coords.x2),
+                 fill = "green", alpha =0.8, size = 5, shape = 21
+                 )
+  })
+  output$hover_info <- renderPrint({
+    if(!is.null(input$plot_hover)){
+      hover=input$plot_hover
+      dist=sqrt((hover$x - cholera_death_locations_xy$coords.x1)^2+(hover$y - cholera_death_locations_xy$coords.x2)^2)
+      cat("Number of Dead\n")
+      if(min(dist) < 3)
+        cholera_death_locations_xy[,1][which.min(dist)]
+    }
+  })
 }
 
 shinyApp(ui <- ui, server = server)

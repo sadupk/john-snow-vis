@@ -1,0 +1,6 @@
+
+*.tsv#
+
+\.Rhistory
+
+\.RData
