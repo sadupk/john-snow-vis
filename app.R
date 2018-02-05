@@ -79,9 +79,9 @@ a = data.frame(x,y)
 map = jpeg::readJPEG("~/Documents/CS424-Visualization/john-snow-vis/18p1data/snowMapRobinWilson.jpg")
 
 #Coordinates for JPEG projection plot
-bottom_left = c(0 ,-0.143556, 51.509472)
-#top_right = c(0, -0.131235, 51.516648)
-top_right = c(0, -0.131438, 51.516533)
+bottom_left = c(0, -0.143777, 51.509523)
+top_right = c(0, -0.131110, 51.516522)
+
 
 cord = rbind(bottom_left, top_right, cholera_death_locations)
 
@@ -171,8 +171,10 @@ ui = dashboardPage(
           )
         ),
         fluidRow(
+          
           column(width = 12,
-                 plotOutput("jpeg", height = 1600,hover = hoverOpts(id ="plot_hover"))
+                 plotOutput("jpeg", height = 1600,hover = hoverOpts(id ="plot_hover")),
+                 uiOutput("dynamic")
           )
         )
       )
@@ -233,14 +235,13 @@ server = function(input, output) {
         options = layersControlOptions(collapsed = TRUE)
       )
   })
-  output$jpeg <- renderPlot({
+  output$jpeg = renderPlot({
     ggplot(df, aes(x,y)) + geom_blank() + labs(x="", y = "") + 
       annotation_custom(rasterGrob(map, width=unit(1,"npc"), height=unit(1,"npc")), -Inf, Inf, -Inf, Inf) +
-      geom_point(data = cholera_death_locations_xy, aes(x = coords.x1, y = coords.x2),
-                 fill = "green", alpha =0.8, size = 5, shape = 21
-                 )
+      geom_point(data = cholera_death_locations_xy, aes(x = coords.x1, y = coords.x2, size = `cord$deaths`),
+                 fill = "red", alpha =0.8, shape = 21) + scale_size_continuous(range = c(3, 15))
   })
-  output$hover_info <- renderPrint({
+  output$hover_info = renderPrint({
     if(!is.null(input$plot_hover)){
       hover=input$plot_hover
       dist=sqrt((hover$x - cholera_death_locations_xy$coords.x1)^2+(hover$y - cholera_death_locations_xy$coords.x2)^2)
@@ -248,6 +249,10 @@ server = function(input, output) {
       if(min(dist) < 3)
         cholera_death_locations_xy[,1][which.min(dist)]
     }
+  })
+  output$dynamic <- renderUI({
+    req(input$plot_hover) 
+    verbatimTextOutput("vals")
   })
 }
 
