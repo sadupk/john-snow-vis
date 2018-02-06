@@ -74,7 +74,7 @@ pump_icon <- makeIcon(
 
 #Plot JPEG and hover variables
 df = data.frame(x = 1:100, y = 1:100)
-map = jpeg::readJPEG("~/Documents/CS424-Visualization/john-snow-vis/18p1data/snowMapRobinWilson.jpg")
+map = jpeg::readJPEG("18p1data/snowMapRobinWilson.jpg")
 
 #Coordinates for JPEG projection plot
 # bottom_left = c(0, -0.143777, 51.509523)
