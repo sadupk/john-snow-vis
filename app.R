@@ -8,6 +8,7 @@ library(grid)
 library(leaflet)
 library(reshape)
 library(rgdal)
+library(RColorBrewer)
 library(wesanderson)
 
 #Lots of code snippets here are inspired by Andy Johnson's demos in CS424
@@ -73,26 +74,37 @@ pump_icon <- makeIcon(
 
 #Plot JPEG and hover variables
 df = data.frame(x = 1:100, y = 1:100)
-x = c(25:35)
-y = c(25:35)
-a = data.frame(x,y)
 map = jpeg::readJPEG("~/Documents/CS424-Visualization/john-snow-vis/18p1data/snowMapRobinWilson.jpg")
 
 #Coordinates for JPEG projection plot
-bottom_left = c(0, -0.143777, 51.509523)
+# bottom_left = c(0, -0.143777, 51.509523)
+bottom_left = c(0, -0.143755, 51.509440)
+
 top_right = c(0, -0.131110, 51.516522)
-
-
 cord = rbind(bottom_left, top_right, cholera_death_locations)
-
 cord.dec = SpatialPoints(cbind(cord$long, cord$lat), proj4string=CRS("+proj=longlat"))
 cord.UTM = spTransform(cord.dec, CRS("+init=epsg:27700"))
 cord =cbind(cord$deaths,as.data.frame(cord.UTM))
+cord_pumps = rbind(bottom_left[2:3], top_right[2:3], pump_locations)
+cord.dec_pumps = SpatialPoints(cbind(cord_pumps$long, cord_pumps$lat), proj4string=CRS("+proj=longlat"))
+cord.UTM_pumps = spTransform(cord.dec_pumps, CRS("+init=epsg:27700"))
+cord.UTM_pumps = as.data.frame(cord.UTM_pumps)
 
 #Scale projection to JPEG coordinates
 cord$coords.x1 = (cord$coords.x1 - min(cord$coords.x1)) / (max(cord$coords.x1) - min(cord$coords.x1)) * nrow(df)
 cord$coords.x2 = (cord$coords.x2 - min(cord$coords.x2)) / (max(cord$coords.x2) - min(cord$coords.x2)) * nrow(df)
 cholera_death_locations_xy = cord[-c(1:2),]
+cord.UTM_pumps$coords.x1 = (cord.UTM_pumps$coords.x1 - min(cord.UTM_pumps$coords.x1)) / (max(cord.UTM_pumps$coords.x1) - min(cord.UTM_pumps$coords.x1)) * nrow(df)
+cord.UTM_pumps$coords.x2 = (cord.UTM_pumps$coords.x2 - min(cord.UTM_pumps$coords.x2)) / (max(cord.UTM_pumps$coords.x2) - min(cord.UTM_pumps$coords.x2)) * nrow(df)
+pump_locations_xy = cord.UTM_pumps[-c(1:2),]
+
+#Colors
+pal_reds = brewer.pal(9,"OrRd")
+#For leaflet
+pal_leaflet = colorNumeric(
+  palette = pal_reds[3:9],
+  domain = cholera_death_locations$deaths
+)
 
 ui = dashboardPage(
   dashboardHeader(title = "John Snow's Dashboard"),
@@ -227,19 +239,27 @@ server = function(input, output) {
   output$leaf <- renderLeaflet({
     map =leaflet(data = cholera_death_locations) %>% addTiles(group = "Deaths") %>% 
       addProviderTiles(providers$CartoDB.Positron, group = "Basemap") %>%
-      addMarkers(clusterOptions = markerClusterOptions(showCoverageOnHover = FALSE, animationOptions())) %>% 
-      addMarkers(data = pump_locations, group = "Pumps", icon = pump_icon) %>%
+      addCircleMarkers(radius = cholera_death_locations$deaths, color = pal_leaflet(cholera_death_locations$deaths), fillOpacity = 0.9) %>%
+      addCircleMarkers(data = pump_locations, group = "Pumps", color = "Blue") %>%
       addLayersControl(
         baseGroups = c("Basemap", "Deaths"),
         overlayGroups = c("Pumps"),
         options = layersControlOptions(collapsed = TRUE)
-      )
+      ) %>%
+      addLegend(pal = pal_leaflet, values = cholera_death_locations$deaths,
+                title = "Number of Deaths",
+                opacity = 1
+      ) %>%
+      addLegend(colors= "Blue", labels="", title="Pumps")
   })
   output$jpeg = renderPlot({
     ggplot(df, aes(x,y)) + geom_blank() + labs(x="", y = "") + 
-      annotation_custom(rasterGrob(map, width=unit(1,"npc"), height=unit(1,"npc")), -Inf, Inf, -Inf, Inf) +
+      annotation_custom(rasterGrob(map, width=unit(1,"npc"), height=unit(1,"npc")), -Inf, Inf, -Inf, Inf) + 
+      geom_point(data = pump_locations_xy, aes(x = coords.x1, y = coords.x2, colour = "", size = 5)) +
       geom_point(data = cholera_death_locations_xy, aes(x = coords.x1, y = coords.x2, size = `cord$deaths`),
-                 fill = "red", alpha =0.8, shape = 21) + scale_size_continuous(range = c(3, 15))
+                 fill = "red", alpha =0.8, shape = 21) +
+      scale_size_continuous(range = c(3, 15), name = "Deaths") +
+      scale_colour_manual(values = "blue", name = "Pumps")
   })
   output$hover_info = renderPrint({
     if(!is.null(input$plot_hover)){
