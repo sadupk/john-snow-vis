@@ -42,6 +42,7 @@ cholera_deaths$Attack = as.integer(cholera_deaths$Attack)
 cholera_deaths$Death = as.integer(cholera_deaths$Death)
 cholera_age_sex$male = as.numeric(cholera_age_sex$male)
 cholera_age_sex$female = as.numeric(cholera_age_sex$female)
+cholera_age_sex$age = factor(cholera_age_sex$age, levels = cholera_age_sex$age)
 
 #New columns cumsum for cholera_deaths
 cholera_deaths$Attack_cum = cumsum(cholera_deaths$Attack)
@@ -110,91 +111,93 @@ ui = dashboardPage(
   dashboardHeader(title = "John Snow's Dashboard"),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-      menuItem("Widgets", tabName = "widgets", icon = icon("th"))
+      menuItem("About", tabName = "about", icon = icon("dashboard")),
+      menuItem("The overall picture", tabName = "overall", icon = icon("th")),
+      menuItem("Who was attacked", tabName = "who", icon = icon("th")),
+      menuItem("The 1851 UK Census", tabName = "census", icon = icon("th"))
     )
   ),
   dashboardBody(
     tabItems(
-      tabItem(tabName = "dashboard",
-        fluidRow(
-          box(
-            title = "Cholera Deaths and Attacks", plotOutput("plot0")
-          )
-        ),
-        fluidRow(
-          dataTableOutput(
-            "table0"
-          )
-        ),
-        fluidRow(
-          dataTableOutput(
-            "table1"
-          )
-        ),
-        fluidRow(
-          box(
-            title = "Woman Attacked", plotOutput("plot2")
-          )
-        ),
-        fluidRow(
-          box(
-            title = "Men Attacked", plotOutput("plot3")
-          )
-        ),
-        fluidRow(
-          dataTableOutput(
-            "table2"
-          )
-        ),
-        fluidRow(
-          box(
-            title = "UK Census - Males", plotOutput("plot4")
-          )
-        ),
-        fluidRow(
-          box(
-            title = "UK Census - females", plotOutput("plot5")
-          )
-        ),
-        fluidRow(
-          box(
-            title = "UK Census - males", plotOutput("plot6")
-          )
-        ),
-        fluidRow(
-          box(
-            title = "UK Census - females", plotOutput("plot7")
-          )
-        ),
-        fluidRow(
-          box(
-            title = "UK Census - total by sex", plotOutput("plot8")
-          )
-        ),
-        fluidRow(
-          box(
-            title = "Leaflet Map", leafletOutput("leaf")
-          )
-        ),
-        fluidRow(
-          column(width = 5,
-                 verbatimTextOutput("hover_info")
-          )
-        ),
-        fluidRow(
-          
-          column(width = 12,
-                 plotOutput("jpeg", height = 1600,hover = hoverOpts(id ="plot_hover")),
-                 uiOutput("dynamic")
-          )
+      tabItem(tabName = "overall",
+              fluidRow(
+                title = "Cholera Deaths and Attacks", plotOutput("plot0")
+              ),
+              fluidRow(
+                dataTableOutput(
+                  "table0"
+                )
+              )
+      ),
+      tabItem(tabName = "who",
+              fluidRow(
+                column(6,
+                       title = "Woman Attacked", plotOutput("plot2")
+                ),
+                column(6,
+                       title = "Men Attacked", plotOutput("plot3")
+                )
+              ),
+              fluidRow(
+                dataTableOutput(
+                  "table1"
+                )
+              ),
+              fluidRow(
+                dataTableOutput(
+                  "table2"
+                )
+              )
+      ),
+      tabItem(tabName = "census",
+      fluidRow(
+        box(
+          title = "UK Census - Males", plotOutput("plot4")
+        )
+      ),
+      fluidRow(
+        box(
+          title = "UK Census - females", plotOutput("plot5")
+        )
+      ),
+      fluidRow(
+        box(
+          title = "UK Census - males", plotOutput("plot6")
+        )
+      ),
+      fluidRow(
+        box(
+          title = "UK Census - females", plotOutput("plot7")
+        )
+      ),
+      fluidRow(
+        box(
+          title = "UK Census - total by sex", plotOutput("plot8")
+        )
+      ),
+      fluidRow(
+        box(
+          title = "Leaflet Map", leafletOutput("leaf")
+        )
+      ),
+      fluidRow(
+        column(width = 5,
+               verbatimTextOutput("hover_info")
+        )
+      ),
+      fixedRow(
+        
+        column(width = 12,
+               plotOutput("jpeg", height = "auto",hover = hoverOpts(id ="plot_hover")),
+               uiOutput("dynamic")
         )
       )
     )
+  )
 ))
 
 
-server = function(input, output) {
+server = function(input, output, session) {
   output$plot0 = renderPlot({
     ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 2) + 
       theme(legend.title=element_blank()) +
@@ -260,6 +263,10 @@ server = function(input, output) {
                  fill = "red", alpha =0.8, shape = 21) +
       scale_size_continuous(range = c(3, 15), name = "Deaths") +
       scale_colour_manual(values = "blue", name = "Pumps")
+  }, 
+  #Dynamic height code idea by jcheng5 https://github.com/rstudio/shiny/issues/650
+  height = function() {
+    session$clientData$output_jpeg_width
   })
   output$hover_info = renderPrint({
     if(!is.null(input$plot_hover)){
