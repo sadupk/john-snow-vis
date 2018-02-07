@@ -48,7 +48,9 @@ cholera_age_sex$age = factor(cholera_age_sex$age, levels = cholera_age_sex$age)
 cholera_deaths$Attack_cum = cumsum(cholera_deaths$Attack)
 cholera_deaths$Death_cum = cumsum(cholera_deaths$Death)
 
-#New column for UK census
+#New column and names for UK census
+UK_census$age = c("0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "over 80")
+UK_census[c("male", "female")]=round(UK_census[c("male", "female")], digits = -4)
 UK_census$total = UK_census$male + UK_census$female
 
 #Line plot melted data for cholera_deaths
@@ -117,7 +119,9 @@ ui = dashboardPage(skin = "red",
       menuItem("About", tabName = "about", icon = icon("dashboard")),
       menuItem("The overall picture", tabName = "overall", icon = icon("th")),
       menuItem("Who was attacked", tabName = "who", icon = icon("th")),
-      menuItem("The 1851 UK Census", tabName = "census", icon = icon("th"))
+      menuItem("The 1851 UK Census", tabName = "census", icon = icon("th")),
+      menuItem("John Snow's Map", tabName = "map_snow", icon = icon("th")),
+      menuItem("Modern London Map", tabName = "map_modern", icon = icon("th"))
     )
   ),
   dashboardBody(
@@ -157,13 +161,12 @@ ui = dashboardPage(skin = "red",
                 )
               ),
               fluidRow(
-                dataTableOutput(
-                  "table1"
-                )
-              ),
-              fluidRow(
-                dataTableOutput(
-                  "table2"
+                tabBox(
+                  title = "The Population Distribution in Numbers",
+                  # The id lets us use input$tabset1 on the server to find the current tab
+                  id = "table1",
+                  tabPanel("Cholera Deaths", dataTableOutput("table1")),
+                  tabPanel("UK 1852 Census", dataTableOutput("table2"))
                 )
               )
       ),
@@ -192,27 +195,27 @@ ui = dashboardPage(skin = "red",
         box(
           title = "UK Census - total by sex", plotOutput("plot8")
         )
-      ),
-      fluidRow(
-        box(
-          title = "Leaflet Map", leafletOutput("leaf")
-        )
-      ),
-      fluidRow(
-        column(width = 5,
-               verbatimTextOutput("hover_info")
-        )
-      ),
-      fixedRow(
-        
-        column(width = 12,
-               plotOutput("jpeg", height = "auto",hover = hoverOpts(id ="plot_hover")),
-               uiOutput("dynamic")
-        )
+      )),
+      tabItem(tabName = "map_snow",
+              fluidRow(
+                leafletOutput("leaf")
+              )),
+      tabItem(tabName = "map_modern",
+              fixedRow(
+                column(width = 2,
+                       verbatimTextOutput("hover_info")
+                )
+              ),
+              fluidRow(
+                
+                column(width = 6,
+                       plotOutput("jpeg", height = "auto",hover = hoverOpts(id ="plot_hover")),
+                       uiOutput("dynamic")
+                )
+              )
       )
     )
-  )
-))
+  ))
 
 
 server = function(input, output, session) {
@@ -267,10 +270,19 @@ server = function(input, output, session) {
       formatStyle(names(cholera_deaths), backgroundColor = "white")
   })
   output$table1 = renderDataTable({
-    cholera_age_sex
+    datatable(cholera_age_sex, rownames = FALSE,  
+              colnames = c('Age', 'Male deaths per 1000', 'Female deaths per 1000'),
+              options = list(dom = 't')
+    ) %>%
+      formatStyle(names(cholera_age_sex), backgroundColor = "white")
   })
   output$table2 = renderDataTable({
-    UK_census
+    datatable(UK_census, rownames = FALSE,  
+              colnames = c("Age", "Number of Males", "Number of Females", "Total"),
+              options = list(dom = "t")
+    ) %>%
+      formatStyle(names(UK_census), backgroundColor = "white") %>%
+      formatRound(c("male", "female", "total"), interval = 3, mark = ",", digits = 0)
   })
   output$leaf <- renderLeaflet({
     map =leaflet(data = cholera_death_locations) %>% addTiles(group = "Deaths") %>% 
