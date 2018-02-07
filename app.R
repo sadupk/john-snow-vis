@@ -63,15 +63,16 @@ UK_census_sum = data.frame(
   total = c(sum(UK_census$male), sum(UK_census$female))
 )
 
-#Custom leaflet pump marker
-pump_icon <- makeIcon(
-  iconUrl = "18p1data/drop-icon.png",
-  iconWidth = 20, iconHeight = 20,
-  iconAnchorX = 22, iconAnchorY = 94,
-  shadowUrl = "18p1data/drop-icon.png",
-  shadowWidth = 20, shadowHeight = 20,
-  shadowAnchorX = 4, shadowAnchorY = 62
-)
+#Data prep for pyramids
+cholera_age_sex_pyramid = cholera_age_sex 
+cholera_age_sex_pyramid$female = -cholera_age_sex_pyramid$female
+cholera_age_sex_pyramid = melt(cholera_age_sex_pyramid, id.vars = "age")
+UK_census_pyramid = UK_census[c("age","male", "female")]
+UK_census_pyramid$female = -UK_census_pyramid$female
+UK_census_pyramid$male = UK_census_pyramid$male/UK_census_sum$total[1]*100
+UK_census_pyramid$female = UK_census_pyramid$female/UK_census_sum$total[2]*100
+UK_census_pyramid = melt(UK_census_pyramid, id.vars = "age")
+lbls = paste0(as.character(c(seq(40, 0, -5), seq(5, 40, 5))))
 
 #Plot JPEG and hover variables
 df = data.frame(x = 1:100, y = 1:100)
@@ -107,8 +108,10 @@ pal_leaflet = colorNumeric(
   domain = cholera_death_locations$deaths
 )
 
-ui = dashboardPage(
-  dashboardHeader(title = "John Snow's Dashboard"),
+ui = dashboardPage(skin = "red",
+  dashboardHeader(title = "John Snow's Dashboard",
+                  titleWidth = 400
+                  ),
   dashboardSidebar(
     sidebarMenu(
       menuItem("About", tabName = "about", icon = icon("dashboard")),
@@ -118,6 +121,21 @@ ui = dashboardPage(
     )
   ),
   dashboardBody(
+    tags$head(tags$style(HTML('
+      .main-header .logo {
+        font-family: "Georgia", Times, "Times New Roman", serif;
+        font-weight: bold;
+        font-size: 24px;
+      }
+      .main-sidebar {
+        font-family: "Georgia", Times, "Times New Roman", serif;
+        font-weight: bold;
+        font-size: 14px;
+      }
+      .content-wrapper {
+        background-color: white !important;
+      }
+    '))),
     tabItems(
       tabItem(tabName = "overall",
               fluidRow(
@@ -203,17 +221,29 @@ server = function(input, output, session) {
       theme(legend.title=element_blank()) +
       scale_color_manual(values=wes_palette(n=4, name="GrandBudapest2"), 
                          labels=c("Attacks", "Deaths", "Cummulatice Attacks", "Cummulative Deaths")) +
-      theme_dark(20)
+    theme_bw()
   })
   output$plot1 = renderPlot({
     ggplot(cholera_age_sex_long, aes(x=age, y=value,fill=factor(variable))) + geom_bar(stat = "identity", position = "dodge") +
       scale_fill_manual(values = wes_palette(n=2, name="GrandBudapest"))
   })
   output$plot2 = renderPlot({
-    ggplot(cholera_age_sex, aes(x=age, y=female)) + geom_bar(stat = "identity")
+    ggplot(cholera_age_sex_pyramid, aes(x = age, y = value, fill = variable)) + 
+      geom_bar(stat = "identity", width = .6) +
+      scale_y_continuous(breaks = seq(-40, 40, 5), limits = c(-40,40), labels = lbls) + 
+      coord_flip() + 
+      scale_fill_brewer(palette = "Set1") + 
+      theme_bw() +
+      labs(title="Cholera Outbreak Death by Age Group", y = "Deaths per 1000 People", x = "Age Group")
   })
   output$plot3 = renderPlot({
-    ggplot(cholera_age_sex, aes(x=age, y=male)) + geom_bar(stat = "identity")
+    ggplot(UK_census_pyramid, aes(x = age, y = value, fill = variable)) + 
+      geom_bar(stat = "identity", width = .6) +
+      scale_y_continuous(breaks = seq(-40, 40, 5), limits = c(-40,40), labels = lbls) + 
+      coord_flip() + 
+      scale_fill_brewer(palette = "Set1") + 
+      theme_bw() +
+      labs(title="UK 1851 Population Distribution", y = "% of Total Population", x = "Age Group")
   })
   output$plot4 = renderPlot({
     ggplot(UK_census, aes(x="", y=male, fill=age)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
@@ -231,7 +261,10 @@ server = function(input, output, session) {
     ggplot(UK_census_sum, aes(x="", y=total, fill=group)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
   })
   output$table0 = renderDataTable({
-    cholera_deaths
+    datatable(cholera_deaths, rownames = FALSE,  
+              colnames = c('Date', 'Daily Attacks', 'Daily Deaths', 'Cummulative Attacks', 'Cummulative Deaths')
+              ) %>%
+      formatStyle(names(cholera_deaths), backgroundColor = "white")
   })
   output$table1 = renderDataTable({
     cholera_age_sex
