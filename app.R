@@ -10,6 +10,7 @@ library(reshape)
 library(rgdal)
 library(RColorBrewer)
 library(wesanderson)
+library(ggrepel)
 
 #Lots of code snippets here are inspired by Andy Johnson's demos in CS424
 
@@ -110,37 +111,71 @@ pal_leaflet = colorNumeric(
   domain = cholera_death_locations$deaths
 )
 
+#Plot theme from http://www.sthda.com/english/wiki/ggplot2-pie-chart-quick-start-guide-r-software-and-data-visualization
+blank_theme <- theme_minimal()+
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    panel.border = element_blank(),
+    panel.grid=element_blank(),
+    axis.ticks = element_blank(),
+    plot.title=element_text(size=14, face="bold")
+  )
+
+
 ui = dashboardPage(skin = "red",
   dashboardHeader(title = "John Snow's Dashboard",
                   titleWidth = 400
                   ),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("About", tabName = "about", icon = icon("dashboard")),
-      menuItem("The overall picture", tabName = "overall", icon = icon("th")),
-      menuItem("Who was attacked", tabName = "who", icon = icon("th")),
+      menuItem("About", tabName = "about", icon = icon("fas fa-info")),
+      menuItem("The overall picture", tabName = "overall", icon = icon("bar-chart-o")),
+      menuItem("Who was attacked", tabName = "who", icon = icon("bar-chart-o")),
       menuItem("The 1851 UK Census", tabName = "census", icon = icon("th")),
-      menuItem("John Snow's Map", tabName = "map_snow", icon = icon("th")),
-      menuItem("Modern London Map", tabName = "map_modern", icon = icon("th"))
+      menuItem("John Snow's Map", tabName = "map_snow", icon = icon("fas fa-map")),
+      menuItem("Modern London Map", tabName = "map_modern", icon = icon("fas fa-map"))
     )
   ),
   dashboardBody(
     tags$head(tags$style(HTML('
       .main-header .logo {
-        font-family: "Georgia", Times, "Times New Roman", serif;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
         font-weight: bold;
         font-size: 24px;
       }
       .main-sidebar {
-        font-family: "Georgia", Times, "Times New Roman", serif;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
         font-weight: bold;
         font-size: 14px;
+      }
+      h1 {
+      	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      	font-size: 24px;
+      	font-style: normal;
+      	font-variant: normal;
+      	font-weight: 500;
+      	line-height: 26.4px;
+      }
+      h3 {
+      	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      	font-size: 14px;
+      	font-style: normal;
+      	font-variant: normal;
+      	font-weight: 500;
+      	line-height: 15.4px;
       }
       .content-wrapper {
         background-color: white !important;
       }
     '))),
     tabItems(
+      tabItem(tabName = "about",
+                h1("About this project:"), 
+                h3("Hello, /n this project was done by Pedro Borges for CS424. The goal is to explore 
+                   the data collected by John snow in 1851 and present it in a modern way to draw similar conclusion to his.
+                   All of the data used to produce this project can be downloaded at GITHUB LINK..")
+      ),
       tabItem(tabName = "overall",
               fluidRow(
                 title = "Cholera Deaths and Attacks", plotOutput("plot0")
@@ -196,11 +231,11 @@ ui = dashboardPage(skin = "red",
           title = "UK Census - total by sex", plotOutput("plot8")
         )
       )),
-      tabItem(tabName = "map_snow",
+      tabItem(tabName = "map_modern",
               fluidRow(
                 leafletOutput("leaf")
               )),
-      tabItem(tabName = "map_modern",
+      tabItem(tabName = "map_snow",
               fixedRow(
                 column(width = 2,
                        verbatimTextOutput("hover_info")
@@ -252,7 +287,16 @@ server = function(input, output, session) {
     ggplot(UK_census, aes(x="", y=male, fill=age)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
   })
   output$plot5 = renderPlot({
-    ggplot(UK_census, aes(x="", y=female, fill=age)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
+    ggplot(UK_census, aes(1, female, fill = age)) +
+      geom_col(color = 'black', 
+               position = position_stack(reverse = TRUE), 
+               show.legend = FALSE) +
+      geom_text_repel(aes(x = 1.4, y = (cumsum(c(0, female)) + c(female / 2, .01))[1:nrow(UK_census)], label = age), 
+                      nudge_x = .3, 
+                      segment.size = .7, 
+                      show.legend = FALSE) +
+      coord_polar('y') +
+      theme_void()
   })
   output$plot6 = renderPlot({
     ggplot(UK_census, aes(x=age, y=male)) + geom_bar(stat = "identity")
@@ -261,7 +305,15 @@ server = function(input, output, session) {
     ggplot(UK_census, aes(x=age, y=female)) + geom_bar(stat = "identity")
   })
   output$plot8 = renderPlot({
-    ggplot(UK_census_sum, aes(x="", y=total, fill=group)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
+    ggplot(UK_census_sum, aes(x="", y=total, fill=group)) + 
+      geom_bar(width = 1, stat = "identity") + 
+      coord_polar("y", start=0) +
+      scale_fill_brewer(palette="Pastel1") +
+      blank_theme +
+      theme(axis.text.x=element_blank()) +
+      geom_text(aes(y = total/2 + c(0, cumsum(total)[-length(total)]), 
+                    label = format(total, big.mark = ",")), size=5) +
+      labs(fill = "")
   })
   output$table0 = renderDataTable({
     datatable(cholera_deaths, rownames = FALSE,  
@@ -303,7 +355,7 @@ server = function(input, output, session) {
   output$jpeg = renderPlot({
     ggplot(df, aes(x,y)) + geom_blank() + labs(x="", y = "") + 
       annotation_custom(rasterGrob(map, width=unit(1,"npc"), height=unit(1,"npc")), -Inf, Inf, -Inf, Inf) + 
-      geom_point(data = pump_locations_xy, aes(x = coords.x1, y = coords.x2, colour = "", size = 5)) +
+      geom_point(data = pump_locations_xy, aes(x = coords.x1, y = coords.x2, colour = ""), size = 8) +
       geom_point(data = cholera_death_locations_xy, aes(x = coords.x1, y = coords.x2, size = `cord$deaths`),
                  fill = "red", alpha =0.8, shape = 21) +
       scale_size_continuous(range = c(3, 15), name = "Deaths") +
