@@ -284,7 +284,17 @@ server = function(input, output, session) {
       labs(title="UK 1851 Population Distribution", y = "% of Total Population", x = "Age Group")
   })
   output$plot4 = renderPlot({
-    ggplot(UK_census, aes(x="", y=male, fill=age)) + geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0)
+    ggplot(UK_census, aes(1, male, fill = age)) +
+      geom_col(color = 'black', 
+               position = position_stack(reverse = TRUE), 
+               show.legend = FALSE) +
+      geom_text_repel(aes(x = 1.4, y = (cumsum(c(0, male)) + c(male / 2, .01))[1:nrow(UK_census)], label = age), 
+                      nudge_x = .3, 
+                      segment.size = .7, 
+                      show.legend = FALSE) +
+      coord_polar('y') +
+      theme_void() +
+      scale_fill_brewer(palette="Pastel1")
   })
   output$plot5 = renderPlot({
     ggplot(UK_census, aes(1, female, fill = age)) +
@@ -296,7 +306,8 @@ server = function(input, output, session) {
                       segment.size = .7, 
                       show.legend = FALSE) +
       coord_polar('y') +
-      theme_void()
+      theme_void() +
+      scale_fill_brewer(palette="Pastel1")
   })
   output$plot6 = renderPlot({
     ggplot(UK_census, aes(x=age, y=male)) + geom_bar(stat = "identity")
@@ -306,10 +317,10 @@ server = function(input, output, session) {
   })
   output$plot8 = renderPlot({
     ggplot(UK_census_sum, aes(x="", y=total, fill=group)) + 
-      geom_bar(width = 1, stat = "identity") + 
+      geom_bar(width = 1, stat = "identity", color = "black") + 
       coord_polar("y", start=0) +
       scale_fill_brewer(palette="Pastel1") +
-      blank_theme +
+      theme_void() +
       theme(axis.text.x=element_blank()) +
       geom_text(aes(y = total/2 + c(0, cumsum(total)[-length(total)]), 
                     label = format(total, big.mark = ",")), size=5) +
