@@ -75,16 +75,14 @@ UK_census_pyramid$female = -UK_census_pyramid$female
 UK_census_pyramid$male = UK_census_pyramid$male/UK_census_sum$total[1]*100
 UK_census_pyramid$female = UK_census_pyramid$female/UK_census_sum$total[2]*100
 UK_census_pyramid = melt(UK_census_pyramid, id.vars = "age")
-lbls = paste0(as.character(c(seq(40, 0, -5), seq(5, 40, 5))))
+lbls = paste0(as.character(c(seq(40, 0, -10), seq(10, 40, 10))))
 
 #Plot JPEG and hover variables
 df = data.frame(x = 1:100, y = 1:100)
 map = jpeg::readJPEG("18p1data/snowMapRobinWilson.jpg")
 
 #Coordinates for JPEG projection plot
-# bottom_left = c(0, -0.143777, 51.509523)
 bottom_left = c(0, -0.143755, 51.509440)
-
 top_right = c(0, -0.131110, 51.516522)
 cord = rbind(bottom_left, top_right, cholera_death_locations)
 cord.dec = SpatialPoints(cbind(cord$long, cord$lat), proj4string=CRS("+proj=longlat"))
@@ -105,6 +103,11 @@ pump_locations_xy = cord.UTM_pumps[-c(1:2),]
 
 #Colors
 pal_reds = brewer.pal(9,"OrRd")
+pal_cum = c("orangered",
+            "slateblue",
+            "orangered3",
+            "slateblue4")
+
 #For leaflet
 pal_leaflet = colorNumeric(
   palette = pal_reds[3:9],
@@ -130,9 +133,8 @@ ui = dashboardPage(skin = "red",
   dashboardSidebar(
     sidebarMenu(
       menuItem("About", tabName = "about", icon = icon("fas fa-info")),
-      menuItem("The overall picture", tabName = "overall", icon = icon("bar-chart-o")),
-      menuItem("Who was attacked", tabName = "who", icon = icon("bar-chart-o")),
-      menuItem("The 1851 UK Census", tabName = "census", icon = icon("th")),
+      menuItem("An epidemics progress", tabName = "overall", icon = icon("bar-chart-o")),
+      menuItem("Who was affected", tabName = "who", icon = icon("bar-chart-o")),
       menuItem("John Snow's Map", tabName = "map_snow", icon = icon("fas fa-map")),
       menuItem("Modern London Map", tabName = "map_modern", icon = icon("fas fa-map"))
     )
@@ -149,6 +151,22 @@ ui = dashboardPage(skin = "red",
         font-weight: bold;
         font-size: 14px;
       }
+      .nav-tabs {
+      	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      	font-size: 24px;
+      	font-style: normal;
+      	font-variant: normal;
+      	font-weight: 500;
+      	line-height: 26.4px;
+      }
+      .x-toolbar-title {
+      	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+      	font-size: 24px;
+      	font-style: normal;
+      	font-variant: normal;
+      	font-weight: 500;
+      	line-height: 26.4px;
+      }
       h1 {
       	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       	font-size: 24px;
@@ -159,7 +177,15 @@ ui = dashboardPage(skin = "red",
       }
       h3 {
       	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-      	font-size: 14px;
+      	font-size: 24px;
+      	font-style: normal;
+      	font-variant: normal;
+      	font-weight: 500;
+      	line-height: 26.4px;
+      }
+      text1 {
+      	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      	font-size: 25px;
       	font-style: normal;
       	font-variant: normal;
       	font-weight: 500;
@@ -171,20 +197,34 @@ ui = dashboardPage(skin = "red",
     '))),
     tabItems(
       tabItem(tabName = "about",
-                h1("About this project:"), 
-                h3("Hello, /n this project was done by Pedro Borges for CS424. The goal is to explore 
-                   the data collected by John snow in 1851 and present it in a modern way to draw similar conclusion to his.
+              h1("About this project:"), 
+              h3("Hello, /n this project was done by Pedro Borges for CS424. The goal is to explore 
+                   the data collected by John snow in 1854 and present it in a modern way to draw similar conclusion to his.
                    All of the data used to produce this project can be downloaded at GITHUB LINK..")
       ),
-      tabItem(tabName = "overall",
-              fluidRow(
-                title = "Cholera Deaths and Attacks", plotOutput("plot0")
-              ),
-              fluidRow(
-                dataTableOutput(
-                  "table0"
-                )
-              )
+      tabItem(
+        tabName = "overall",
+        fluidRow(
+          column(3,
+                 h3("British doctor John Snow couldn’t convince other doctors and scientists that cholera, a deadly disease, 
+                    was spread when people drank contaminated water until a mother washed her baby’s diaper in a town well 
+                    in 1854 and touched off an epidemic that killed 616 people.")
+                 ),
+          column(8,
+          title = "Cholera Deaths and Attacks", plotOutput("plot0")
+          )
+        ),
+        fluidRow(
+          column(3,
+                 h3("“Within 250 yards of the spot where Cambridge Street joins Broad Street there were upwards of 500 
+                    fatal attacks of cholera in 10 days,” Dr. Snow wrote  “As soon as I became acquainted with the 
+                    situation and extent of this irruption (sic) of cholera, I suspected some contamination of the 
+                    water of the much-frequented street-pump in Broad Street.”")
+          ),
+          column(8,
+            dataTableOutput("table0")
+          )
+        )
       ),
       tabItem(tabName = "who",
               fluidRow(
@@ -199,67 +239,53 @@ ui = dashboardPage(skin = "red",
                 tabBox(
                   title = "The Population Distribution in Numbers",
                   # The id lets us use input$tabset1 on the server to find the current tab
-                  id = "table1",
+                  id = "tabset2",
                   tabPanel("Cholera Deaths", dataTableOutput("table1")),
                   tabPanel("UK 1852 Census", dataTableOutput("table2"))
+                ),
+                tabBox(
+                  title = "UK Census by sex and age group (range in years)",
+                  # The id lets us use input$tabset1 on the server to find the current tab
+                  id = "tabset2",
+                  tabPanel("Total population", plotOutput("plot8")),
+                  tabPanel("Male population", plotOutput("plot4")),
+                  tabPanel("Female population", plotOutput("plot5"))
                 )
               )
       ),
-      tabItem(tabName = "census",
-      fluidRow(
-        box(
-          title = "UK Census - Males", plotOutput("plot4")
-        )
-      ),
-      fluidRow(
-        box(
-          title = "UK Census - females", plotOutput("plot5")
-        )
-      ),
-      fluidRow(
-        box(
-          title = "UK Census - males", plotOutput("plot6")
-        )
-      ),
-      fluidRow(
-        box(
-          title = "UK Census - females", plotOutput("plot7")
-        )
-      ),
-      fluidRow(
-        box(
-          title = "UK Census - total by sex", plotOutput("plot8")
-        )
-      )),
       tabItem(tabName = "map_modern",
-              fluidRow(
-                leafletOutput("leaf")
-              )),
+              tags$style(type = "text/css", ".box-body {height:80vh}"),
+              leafletOutput("leaf", width = "100%", height = 900)
+      ),
       tabItem(tabName = "map_snow",
-              fixedRow(
-                column(width = 2,
-                       verbatimTextOutput("hover_info")
-                )
-              ),
+              class = "h3",
               fluidRow(
-                
-                column(width = 6,
-                       plotOutput("jpeg", height = "auto",hover = hoverOpts(id ="plot_hover")),
-                       uiOutput("dynamic")
+                column(width = 7,
+                       plotOutput("jpeg", height = "auto",hover = hoverOpts(id ="plot_hover"))
+                ),
+                column(width = 5,
+                       box(h1("Hover mouse over the death locations"),
+                           width = 12,
+                           height = 2,
+                           uiOutput("hover_info")
+                       )
                 )
               )
       )
     )
-  ))
+  )
+)
 
 
 server = function(input, output, session) {
   output$plot0 = renderPlot({
-    ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 2) + 
+    ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 4) + 
+      scale_color_manual(values=pal_cum, labels=c("Daily Attacks", "Daily Deaths", "Cummulatice Attacks", "Cummulative Deaths")) +
+      theme_bw() +
+      theme(text = element_text(size=30)) +
       theme(legend.title=element_blank()) +
-      scale_color_manual(values=wes_palette(n=4, name="GrandBudapest2"), 
-                         labels=c("Attacks", "Deaths", "Cummulatice Attacks", "Cummulative Deaths")) +
-    theme_bw()
+      scale_x_date(date_breaks = "5 day", date_labels = "%b %d") +
+      ylab("Number of People")
   })
   output$plot1 = renderPlot({
     ggplot(cholera_age_sex_long, aes(x=age, y=value,fill=factor(variable))) + geom_bar(stat = "identity", position = "dodge") +
@@ -268,20 +294,24 @@ server = function(input, output, session) {
   output$plot2 = renderPlot({
     ggplot(cholera_age_sex_pyramid, aes(x = age, y = value, fill = variable)) + 
       geom_bar(stat = "identity", width = .6) +
-      scale_y_continuous(breaks = seq(-40, 40, 5), limits = c(-40,40), labels = lbls) + 
+      scale_y_continuous(breaks = seq(-40, 40, 10), limits = c(-40,40), labels = lbls) + 
       coord_flip() + 
-      scale_fill_brewer(palette = "Set1") + 
+      scale_fill_brewer(palette = "Set1", direction = -1) + 
       theme_bw() +
-      labs(title="Cholera Outbreak Death by Age Group", y = "Deaths per 1000 People", x = "Age Group")
+      labs(title="Cholera Outbreak Death by Age Group", y = "Deaths per 1000 People", x = "Age Group") +
+      theme(text = element_text(size=30)) +
+      theme(legend.title=element_blank())
   })
-  output$plot3 = renderPlot({
+  output$plot3 = renderPlot({9
     ggplot(UK_census_pyramid, aes(x = age, y = value, fill = variable)) + 
       geom_bar(stat = "identity", width = .6) +
-      scale_y_continuous(breaks = seq(-40, 40, 5), limits = c(-40,40), labels = lbls) + 
+      scale_y_continuous(breaks = seq(-40, 40, 10), limits = c(-40,40), labels = lbls) + 
       coord_flip() + 
-      scale_fill_brewer(palette = "Set1") + 
+      scale_fill_brewer(palette = "Set1", direction = -1) + 
       theme_bw() +
-      labs(title="UK 1851 Population Distribution", y = "% of Total Population", x = "Age Group")
+      labs(title="UK 1851 Population Distribution", y = "% of Total Population", x = "Age Group") +
+      theme(text = element_text(size=30)) +
+      theme(legend.title=element_blank())
   })
   output$plot4 = renderPlot({
     ggplot(UK_census, aes(1, male, fill = age)) +
@@ -289,12 +319,13 @@ server = function(input, output, session) {
                position = position_stack(reverse = TRUE), 
                show.legend = FALSE) +
       geom_text_repel(aes(x = 1.4, y = (cumsum(c(0, male)) + c(male / 2, .01))[1:nrow(UK_census)], label = age), 
-                      nudge_x = .3, 
+                      nudge_x = .2, 
                       segment.size = .7, 
-                      show.legend = FALSE) +
+                      show.legend = FALSE,
+                      size = 8) +
       coord_polar('y') +
       theme_void() +
-      scale_fill_brewer(palette="Pastel1")
+      scale_fill_brewer(palette="Blues")
   })
   output$plot5 = renderPlot({
     ggplot(UK_census, aes(1, female, fill = age)) +
@@ -302,18 +333,13 @@ server = function(input, output, session) {
                position = position_stack(reverse = TRUE), 
                show.legend = FALSE) +
       geom_text_repel(aes(x = 1.4, y = (cumsum(c(0, female)) + c(female / 2, .01))[1:nrow(UK_census)], label = age), 
-                      nudge_x = .3, 
-                      segment.size = .7, 
-                      show.legend = FALSE) +
+                      nudge_x = .2,
+                      segment.size = 1, 
+                      show.legend = FALSE,
+                      size = 8) +
       coord_polar('y') +
       theme_void() +
-      scale_fill_brewer(palette="Pastel1")
-  })
-  output$plot6 = renderPlot({
-    ggplot(UK_census, aes(x=age, y=male)) + geom_bar(stat = "identity")
-  })
-  output$plot7 = renderPlot({
-    ggplot(UK_census, aes(x=age, y=female)) + geom_bar(stat = "identity")
+      scale_fill_brewer(palette="Reds") 
   })
   output$plot8 = renderPlot({
     ggplot(UK_census_sum, aes(x="", y=total, fill=group)) + 
@@ -321,30 +347,36 @@ server = function(input, output, session) {
       coord_polar("y", start=0) +
       scale_fill_brewer(palette="Pastel1") +
       theme_void() +
-      theme(axis.text.x=element_blank()) +
+      theme(axis.text.x=element_blank(),  text = element_text(size=30)) +
       geom_text(aes(y = total/2 + c(0, cumsum(total)[-length(total)]), 
-                    label = format(total, big.mark = ",")), size=5) +
+                    label = format(total, big.mark = ",")), size=8) +
       labs(fill = "")
   })
   output$table0 = renderDataTable({
     datatable(cholera_deaths, rownames = FALSE,  
-              colnames = c('Date', 'Daily Attacks', 'Daily Deaths', 'Cummulative Attacks', 'Cummulative Deaths')
-              ) %>%
-      formatStyle(names(cholera_deaths), backgroundColor = "white")
+              colnames = c('Date', 'Daily Attacks', 'Daily Deaths', 'Cummulative Attacks', 'Cummulative Deaths'),
+              options = list(
+                initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '25px'});}"))
+    ) %>%
+      formatStyle(names(cholera_deaths), backgroundColor = "white", `font-size` = '25px')
   })
   output$table1 = renderDataTable({
     datatable(cholera_age_sex, rownames = FALSE,  
               colnames = c('Age', 'Male deaths per 1000', 'Female deaths per 1000'),
-              options = list(dom = 't')
+              options = list(dom = 't',
+                             initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '25px'});}")
+                             )
     ) %>%
-      formatStyle(names(cholera_age_sex), backgroundColor = "white")
+      formatStyle(names(cholera_age_sex), backgroundColor = "white", `font-size` = '25px')
   })
   output$table2 = renderDataTable({
     datatable(UK_census, rownames = FALSE,  
               colnames = c("Age", "Number of Males", "Number of Females", "Total"),
-              options = list(dom = "t")
+              options = list(dom = "t",
+                             initComplete = JS("function(settings, json) {$(this.api().table().header()).css({'font-size' : '25px'});}")
+                             )
     ) %>%
-      formatStyle(names(UK_census), backgroundColor = "white") %>%
+      formatStyle(names(UK_census), backgroundColor = "white", `font-size` = '25px') %>%
       formatRound(c("male", "female", "total"), interval = 3, mark = ",", digits = 0)
   })
   output$leaf <- renderLeaflet({
@@ -370,7 +402,9 @@ server = function(input, output, session) {
       geom_point(data = cholera_death_locations_xy, aes(x = coords.x1, y = coords.x2, size = `cord$deaths`),
                  fill = "red", alpha =0.8, shape = 21) +
       scale_size_continuous(range = c(3, 15), name = "Deaths") +
-      scale_colour_manual(values = "blue", name = "Pumps")
+      scale_colour_manual(values = "blue", name = "Pumps") +
+      theme(text = element_text(size=30)) +
+      theme_void()
   }, 
   #Dynamic height code idea by jcheng5 https://github.com/rstudio/shiny/issues/650
   height = function() {
@@ -380,9 +414,9 @@ server = function(input, output, session) {
     if(!is.null(input$plot_hover)){
       hover=input$plot_hover
       dist=sqrt((hover$x - cholera_death_locations_xy$coords.x1)^2+(hover$y - cholera_death_locations_xy$coords.x2)^2)
-      cat("Number of Dead\n")
+      cat("Number of Dead at That Coordinate: ")
       if(min(dist) < 3)
-        cholera_death_locations_xy[,1][which.min(dist)]
+        cat(cholera_death_locations_xy[,1][which.min(dist)])
     }
   })
   output$dynamic <- renderUI({
