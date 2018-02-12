@@ -1,7 +1,6 @@
 library(shiny)
 library(shinydashboard)
 library(ggplot2)
-library(lubridate)
 library(DT)
 library(jpeg)
 library(grid)
@@ -9,7 +8,6 @@ library(leaflet)
 library(reshape)
 library(rgdal)
 library(RColorBrewer)
-library(wesanderson)
 library(ggrepel)
 
 #Lots of code snippets here are inspired by Andy Johnson's demos in CS424
@@ -110,7 +108,7 @@ pal_cum = c("orangered",
 
 #For leaflet
 pal_leaflet = colorNumeric(
-  palette = pal_reds[3:9],
+  palette = pal_reds[5:9],
   domain = cholera_death_locations$deaths
 )
 
@@ -200,7 +198,14 @@ ui = dashboardPage(skin = "red",
               h1("About this project:"), 
               h3("Hello, /n this project was done by Pedro Borges for CS424. The goal is to explore 
                    the data collected by John snow in 1854 and present it in a modern way to draw similar conclusion to his.
-                   All of the data used to produce this project can be downloaded at GITHUB LINK..")
+                   All of the data used to produce this project can be downloaded at GITHUB LINK.."),
+              h3("In the middle 1800s, people didn’t have running water or modern toilets in their homes. They used town 
+                  wells and communal pumps to get the water they used for drinking, cooking and washing.  Septic systems 
+                  were primitive and most homes and businesses dumped untreated sewage and animal waste directly into the 
+                  Thames River or into open pits called “cesspools”.  Water companies often bottled water from the Thames 
+                  and delivered it to pubs, breweries and other businesses."), 
+              h3("Dr. Snow believed sewage dumped into the river 
+                  or into cesspools near town wells could contaminate the water supply, leading to a rapid spread of disease.")
       ),
       tabItem(
         tabName = "overall",
@@ -280,17 +285,19 @@ ui = dashboardPage(skin = "red",
 server = function(input, output, session) {
   output$plot0 = renderPlot({
     ggplot(cholera_deaths_long, aes(x=Date, y=value, color = variable)) + geom_line(size = 4) + 
-      scale_color_manual(values=pal_cum, labels=c("Daily Attacks", "Daily Deaths", "Cummulatice Attacks", "Cummulative Deaths")) +
+      scale_color_manual(values=pal_cum, labels=c("Daily Attacks", "Daily Deaths", "Cummulative Attacks", "Cummulative Deaths")) +
       theme_bw() +
       theme(text = element_text(size=30)) +
       theme(legend.title=element_blank()) +
       scale_x_date(date_breaks = "5 day", date_labels = "%b %d") +
-      ylab("Number of People")
+      labs(title="Cholera Deaths and Attacks", subtitle = "1854 epidemic",y = "Number of People", x = "Age Group")
   })
+  #Line plot of attacks and deaths over time
   output$plot1 = renderPlot({
     ggplot(cholera_age_sex_long, aes(x=age, y=value,fill=factor(variable))) + geom_bar(stat = "identity", position = "dodge") +
       scale_fill_manual(values = wes_palette(n=2, name="GrandBudapest"))
   })
+  #Demographic pyramid of Naples Cholera attacks
   output$plot2 = renderPlot({
     ggplot(cholera_age_sex_pyramid, aes(x = age, y = value, fill = variable)) + 
       geom_bar(stat = "identity", width = .6) +
@@ -298,10 +305,11 @@ server = function(input, output, session) {
       coord_flip() + 
       scale_fill_brewer(palette = "Set1", direction = -1) + 
       theme_bw() +
-      labs(title="Cholera Outbreak Death by Age Group", y = "Deaths per 1000 People", x = "Age Group") +
+      labs(title="Cholera Death Demographics", subtitle = "Naples 1884-1911 epidemic", y = "Deaths per 1000 People", x = "Age Group") +
       theme(text = element_text(size=30)) +
       theme(legend.title=element_blank())
   })
+  #Demographic pyramid of UK census
   output$plot3 = renderPlot({9
     ggplot(UK_census_pyramid, aes(x = age, y = value, fill = variable)) + 
       geom_bar(stat = "identity", width = .6) +
@@ -309,10 +317,11 @@ server = function(input, output, session) {
       coord_flip() + 
       scale_fill_brewer(palette = "Set1", direction = -1) + 
       theme_bw() +
-      labs(title="UK 1851 Population Distribution", y = "% of Total Population", x = "Age Group") +
+      labs(title="UK Demographics", subtitle = "1851 census",y = "% of Total Population", x = "Age Group") +
       theme(text = element_text(size=30)) +
       theme(legend.title=element_blank())
   })
+  #Man demographic pie chart
   output$plot4 = renderPlot({
     ggplot(UK_census, aes(1, male, fill = age)) +
       geom_col(color = 'black', 
@@ -327,6 +336,7 @@ server = function(input, output, session) {
       theme_void() +
       scale_fill_brewer(palette="Blues")
   })
+  #Female demographic pie chart
   output$plot5 = renderPlot({
     ggplot(UK_census, aes(1, female, fill = age)) +
       geom_col(color = 'black', 
@@ -341,6 +351,7 @@ server = function(input, output, session) {
       theme_void() +
       scale_fill_brewer(palette="Reds") 
   })
+  #Overall male and female pie chart
   output$plot8 = renderPlot({
     ggplot(UK_census_sum, aes(x="", y=total, fill=group)) + 
       geom_bar(width = 1, stat = "identity", color = "black") + 
@@ -352,6 +363,7 @@ server = function(input, output, session) {
                     label = format(total, big.mark = ",")), size=8) +
       labs(fill = "")
   })
+  #Daily afflicted table
   output$table0 = renderDataTable({
     datatable(cholera_deaths, rownames = FALSE,  
               colnames = c('Date', 'Daily Attacks', 'Daily Deaths', 'Cummulative Attacks', 'Cummulative Deaths'),
@@ -360,6 +372,7 @@ server = function(input, output, session) {
     ) %>%
       formatStyle(names(cholera_deaths), backgroundColor = "white", `font-size` = '25px')
   })
+  #Naples afflicted table
   output$table1 = renderDataTable({
     datatable(cholera_age_sex, rownames = FALSE,  
               colnames = c('Age', 'Male deaths per 1000', 'Female deaths per 1000'),
@@ -369,6 +382,7 @@ server = function(input, output, session) {
     ) %>%
       formatStyle(names(cholera_age_sex), backgroundColor = "white", `font-size` = '25px')
   })
+  #UK census table
   output$table2 = renderDataTable({
     datatable(UK_census, rownames = FALSE,  
               colnames = c("Age", "Number of Males", "Number of Females", "Total"),
@@ -379,13 +393,14 @@ server = function(input, output, session) {
       formatStyle(names(UK_census), backgroundColor = "white", `font-size` = '25px') %>%
       formatRound(c("male", "female", "total"), interval = 3, mark = ",", digits = 0)
   })
+  #leaflet map
   output$leaf <- renderLeaflet({
-    map =leaflet(data = cholera_death_locations) %>% addTiles(group = "Deaths") %>% 
+    map =leaflet(data = cholera_death_locations) %>% addTiles(group = "Add City Information") %>% 
       addProviderTiles(providers$CartoDB.Positron, group = "Basemap") %>%
       addCircleMarkers(radius = cholera_death_locations$deaths, color = pal_leaflet(cholera_death_locations$deaths), fillOpacity = 0.9) %>%
       addCircleMarkers(data = pump_locations, group = "Pumps", color = "Blue") %>%
       addLayersControl(
-        baseGroups = c("Basemap", "Deaths"),
+        baseGroups = c("Basemap", "Add City Information"),
         overlayGroups = c("Pumps"),
         options = layersControlOptions(collapsed = TRUE)
       ) %>%
@@ -395,16 +410,17 @@ server = function(input, output, session) {
       ) %>%
       addLegend(colors= "Blue", labels="", title="Pumps")
   })
+  #JPEG map
   output$jpeg = renderPlot({
     ggplot(df, aes(x,y)) + geom_blank() + labs(x="", y = "") + 
       annotation_custom(rasterGrob(map, width=unit(1,"npc"), height=unit(1,"npc")), -Inf, Inf, -Inf, Inf) + 
       geom_point(data = pump_locations_xy, aes(x = coords.x1, y = coords.x2, colour = ""), size = 8) +
       geom_point(data = cholera_death_locations_xy, aes(x = coords.x1, y = coords.x2, size = `cord$deaths`),
-                 fill = "red", alpha =0.8, shape = 21) +
+                 fill = "red", alpha =0.6, shape = 21) +
       scale_size_continuous(range = c(3, 15), name = "Deaths") +
       scale_colour_manual(values = "blue", name = "Pumps") +
-      theme(text = element_text(size=30)) +
-      theme_void()
+      theme_void() +
+      theme(text = element_text(size=30))
   }, 
   #Dynamic height code idea by jcheng5 https://github.com/rstudio/shiny/issues/650
   height = function() {
@@ -418,10 +434,6 @@ server = function(input, output, session) {
       if(min(dist) < 3)
         cat(cholera_death_locations_xy[,1][which.min(dist)])
     }
-  })
-  output$dynamic <- renderUI({
-    req(input$plot_hover) 
-    verbatimTextOutput("vals")
   })
 }
 
