@@ -216,6 +216,7 @@ ui = dashboardPage(skin = "red",
                     in 1854 and touched off an epidemic that killed 616 people.")
                  ),
           column(8,
+                 offest = 1,
           title = "Cholera Deaths and Attacks", plotOutput("plot0")
           )
         ),
@@ -227,34 +228,43 @@ ui = dashboardPage(skin = "red",
                     water of the much-frequented street-pump in Broad Street.”")
           ),
           column(8,
+                 offset = 1,
             dataTableOutput("table0")
           )
         )
       ),
       tabItem(tabName = "who",
               fluidRow(
-                column(6,
+                column(5,
                        title = "Woman Attacked", plotOutput("plot2")
                 ),
-                column(6,
+                column(5,
+                       offset = 1,
                        title = "Men Attacked", plotOutput("plot3")
                 )
               ),
               fluidRow(
-                tabBox(
-                  title = "The Population Distribution in Numbers",
-                  # The id lets us use input$tabset1 on the server to find the current tab
-                  id = "tabset2",
-                  tabPanel("Cholera Deaths", dataTableOutput("table1")),
-                  tabPanel("UK 1852 Census", dataTableOutput("table2"))
+                column(5,
+                       tabBox(
+                         width = 12,
+                         title = "The Population Distribution in Numbers",
+                         # The id lets us use input$tabset1 on the server to find the current tab
+                         id = "tabset2",
+                         tabPanel("Cholera Deaths", dataTableOutput("table1")),
+                         tabPanel("UK 1852 Census", dataTableOutput("table2"))
+                       )
                 ),
-                tabBox(
-                  title = "UK Census by sex and age group (range in years)",
-                  # The id lets us use input$tabset1 on the server to find the current tab
-                  id = "tabset2",
-                  tabPanel("Total population", plotOutput("plot8")),
-                  tabPanel("Male population", plotOutput("plot4")),
-                  tabPanel("Female population", plotOutput("plot5"))
+                column(5,
+                       offset = 1,
+                       tabBox(
+                         width = 12,
+                         title = "UK Census by sex and age group (range in years)",
+                         # The id lets us use input$tabset1 on the server to find the current tab
+                         id = "tabset2",
+                         tabPanel("Total population", plotOutput("plot8")),
+                         tabPanel("Male population", plotOutput("plot4")),
+                         tabPanel("Female population", plotOutput("plot5"))
+                       )
                 )
               )
       ),
